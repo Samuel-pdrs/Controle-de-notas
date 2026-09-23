@@ -10,6 +10,7 @@ O projeto tem como objetivo facilitar o registro e acompanhamento do desempenho 
 
 * ⚙️ Configuração da turma: quantidade máxima de alunos, avaliações e média mínima
 * 👤 Cadastro de alunos com nome e notas dinâmicas
+* ↕️ Rolagem vertical na área de notas para acessar todas as avaliações configuradas
 * ✏️ Edição de alunos e alteração de notas
 * 🗑️ Remoção de aluno com confirmação
 * 🔎 Pesquisa/filtro por nome na tabela

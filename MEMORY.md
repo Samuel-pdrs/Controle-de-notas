@@ -31,7 +31,7 @@ O sistema utiliza paradigma procedural. O usuário configura a turma (quantidade
     - `contador_id_aluno`: inteiro para IDs únicos.
     - `aluno_selecionado_id`: ID do aluno selecionado na tabela.
     - `campos_notas`: lista de referências aos widgets Entry de notas (recriados dinamicamente).
-- **Interface:** Organizada com `grid`, `pack`, `PanedWindow`, `Notebook`, `Treeview` com scrollbars.
+- **Interface:** Organizada com `grid`, `pack`, `PanedWindow`, `Notebook`, `Treeview` com scrollbars e `Canvas` rolável para campos de notas.
 - **Lógica:** Procedural, funções para validação, cálculo, CRUD, atualização de UI e configuração.
 
 ## Regras de negócio

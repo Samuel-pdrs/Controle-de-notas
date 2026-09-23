@@ -92,6 +92,8 @@ tree_alunos = None
 tree_avaliacoes = None
 tree_individual = None
 frame_campos_notas = None
+canvas_notas = None
+scroll_notas = None
 frame_tree_alunos = None
 entry_nome = None
 entry_busca = None
@@ -152,7 +154,7 @@ def buscar_aluno_por_id(aluno_id):
 def validar_nota(texto_nota, numero_avaliacao):
     """Valida uma nota individual e retorna o valor numerico."""
     if texto_nota.strip() == "":
-        raise ValueError(f"Informe a nota da avaliacao {numero_avaliacao}.)")
+        raise ValueError(f"Informe a nota da avaliacao {numero_avaliacao}.")
 
     try:
         nota = converter_para_float(texto_nota)
@@ -160,7 +162,7 @@ def validar_nota(texto_nota, numero_avaliacao):
         raise ValueError(f"Informe uma nota numerica valida na avaliacao {numero_avaliacao}.") from erro
 
     if nota < 0.0 or nota > 10.0:
-        raise ValueError(f"Informe uma nota entre 0 e 10 na avaliacao {numero_avaliacao}.)")
+        raise ValueError(f"Informe uma nota entre 0 e 10 na avaliacao {numero_avaliacao}.")
 
     return nota
 
@@ -550,13 +552,24 @@ def reconstruir_campos_notas():
     for indice in range(configuracao_turma["quantidade_avaliacoes"]):
         linha = indice // 2
         coluna = indice % 2
-        frame_campo = ttk.Frame(frame_campos_notas)
-        frame_campo.grid(row=linha, column=coluna, sticky="ew", padx=6, pady=5)
+        frame_campo = ttk.Frame(frame_campos_notas, padding=(4, 4))
+        frame_campo.grid(row=linha, column=coluna, sticky="ew")
         frame_campo.columnconfigure(0, weight=1)
-        ttk.Label(frame_campo, text=f"Nota {indice + 1}").grid(row=0, column=0, sticky="w")
+        ttk.Label(frame_campo, text=f"Avaliação {indice + 1}").grid(row=0, column=0, sticky="w")
         campo = ttk.Entry(frame_campo, justify="center")
         campo.grid(row=1, column=0, sticky="ew", pady=(2, 0))
         campos_notas.append(campo)
+
+    frame_campos_notas.update_idletasks()
+    if canvas_notas is not None:
+        canvas_notas.configure(scrollregion=canvas_notas.bbox("all"))
+        canvas_notas.yview_moveto(0)
+
+def rolar_notas_com_roda(event):
+    """Move a área de notas com a roda do mouse."""
+    if canvas_notas is not None:
+        canvas_notas.yview_scroll(int(-event.delta / 120), "units")
+    return "break"
 
 
 def abrir_configuracao_turma():
@@ -668,6 +681,7 @@ def criar_linha_analise(pai, texto, chave, linha):
 def construir_interface():
     """Monta a janela principal e todos os paineis."""
     global root, tree_alunos, tree_avaliacoes, tree_individual, frame_campos_notas, frame_tree_alunos
+    global canvas_notas, scroll_notas
     global entry_nome, entry_busca, label_status, label_detalhe_nome
     global label_detalhe_media, label_detalhe_situacao, label_detalhe_alerta
     global label_config_atual, label_estado_vazio, notebook
@@ -703,6 +717,7 @@ def construir_interface():
     style.configure("CardIcon.TLabel", background=bg_card, font=("Segoe UI", 14))
     style.configure("CardValue.TLabel", background=bg_card, foreground=txt_prim, font=("Segoe UI", 18, "bold"))
     style.configure("CardHint.TLabel", background=bg_card, foreground=txt_ter, font=("Segoe UI", 8))
+    style.configure("Empty.TLabel", background=CORES["fundo_secundario"], foreground=txt_sec, font=("Segoe UI", 11))
     style.configure("Title.TLabel", background=bg, foreground=txt_prim, font=("Segoe UI", 18, "bold"))
     style.configure("Subtitle.TLabel", background=bg, foreground=txt_sec, font=("Segoe UI", 12, "bold"))
     style.configure("MetricName.TLabel", background=bg, foreground=txt_sec, font=("Segoe UI", 10))
@@ -713,11 +728,11 @@ def construir_interface():
     style.map("Primary.TButton",
         background=[("active", CORES["primaria_hover"]), ("pressed", CORES["primaria_pressed"]), ("!disabled", prim)],
         foreground=[("disabled", txt_ter)])
-    style.configure("Secondary.TButton", font=("Segoe UI", 10), padding=(12, 8))
+    style.configure("Secondary.TButton", font=("Segoe UI", 9), padding=(8, 5))
     style.map("Secondary.TButton",
         background=[("active", CORES["hover"]), ("pressed", CORES["fundo_secundario"]), ("!disabled", bg_card)],
         foreground=[("disabled", txt_ter)])
-    style.configure("Danger.TButton", font=("Segoe UI", 10), padding=(12, 8), foreground=err)
+    style.configure("Danger.TButton", font=("Segoe UI", 9), padding=(8, 5), foreground=err)
     style.map("Danger.TButton",
         background=[("active", CORES["erro_light"]), ("pressed", CORES["erro_light"]), ("!disabled", bg_card)])
 
@@ -796,13 +811,23 @@ def construir_interface():
     entry_nome.grid(row=1, column=0, sticky="ew")
 
     # Grupo: Notas recebe maior espaço vertical para manter entradas acessíveis.
-    grupo_notas = ttk.LabelFrame(painel_form, text="Notas das Avaliações", padding=12)
+    grupo_notas = ttk.LabelFrame(painel_form, text="Notas das Avaliações — use a rolagem para ver todas", padding=10)
     grupo_notas.grid(row=1, column=0, sticky="nsew", pady=(0, 10))
     grupo_notas.columnconfigure(0, weight=1)
+    grupo_notas.columnconfigure(1, weight=0)
     grupo_notas.rowconfigure(0, weight=1)
     painel_form.rowconfigure(1, weight=1)
-    frame_campos_notas = ttk.Frame(grupo_notas)
-    frame_campos_notas.grid(row=0, column=0, sticky="new")
+    canvas_notas = tk.Canvas(grupo_notas, background=CORES["card"], highlightthickness=0, borderwidth=0)
+    canvas_notas.grid(row=0, column=0, sticky="nsew")
+    scroll_notas = ttk.Scrollbar(grupo_notas, orient=tk.VERTICAL, command=canvas_notas.yview)
+    scroll_notas.grid(row=0, column=1, sticky="ns")
+    canvas_notas.configure(yscrollcommand=scroll_notas.set)
+    frame_campos_notas = ttk.Frame(canvas_notas)
+    canvas_notas.create_window((0, 0), window=frame_campos_notas, anchor="nw", tags="campos")
+    frame_campos_notas.bind("<Configure>", lambda event: canvas_notas.configure(scrollregion=canvas_notas.bbox("all")))
+    canvas_notas.bind("<Configure>", lambda event: canvas_notas.itemconfigure("campos", width=event.width))
+    canvas_notas.bind("<Enter>", lambda event: canvas_notas.bind_all("<MouseWheel>", rolar_notas_com_roda))
+    canvas_notas.bind("<Leave>", lambda event: canvas_notas.unbind_all("<MouseWheel>"))
 
     # Grupo: Ações compacto, abaixo das notas.
     grupo_acoes = ttk.LabelFrame(painel_form, text="Ações rápidas", padding=8)
@@ -828,8 +853,13 @@ def construir_interface():
     entry_busca.bind("<KeyRelease>", filtrar_alunos)
 
     # Label de estado vazio
-    label_estado_vazio = ttk.Label(painel_tabela, text="👥\n\nNenhum aluno cadastrado\n\nAdicione um aluno para começar.",
-                                    justify=tk.CENTER, foreground=CORES["texto_terciario"], font=("Segoe UI", 11))
+    label_estado_vazio = ttk.Label(
+        painel_tabela,
+        text="👥\n\nNenhum aluno registrado\n\nPreencha o formulário ao lado e clique em Adicionar.",
+        justify=tk.CENTER,
+        style="Empty.TLabel",
+        padding=24,
+    )
     label_estado_vazio.grid(row=2, column=0, sticky="nsew", pady=40)
 
     frame_tree_alunos = ttk.Frame(painel_tabela)

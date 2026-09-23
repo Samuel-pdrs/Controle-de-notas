@@ -18,6 +18,8 @@ O roadmap reflete a evolução do projeto acadêmico.
 - [x] Ajuste automático de notas ao alterar quantidade de avaliações.
 - [x] Feedback visual e mensagens de confirmação/erro amigáveis.
 - [x] Redesign visual com paleta moderna, hierarquia tipográfica, cards, ícones e estado vazio da tabela.
+- [x] Rolagem vertical funcional na área de notas, incluindo suporte à roda do mouse.
+- [x] Rolagem vertical em tabelas de análise e consulta individual.
 
 ## Em desenvolvimento
 - Nenhuma funcionalidade está atualmente em desenvolvimento parcial.
