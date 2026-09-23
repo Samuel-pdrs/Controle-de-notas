@@ -17,6 +17,7 @@ O projeto tem como objetivo facilitar o registro e acompanhamento do desempenho 
 * 📊 Cálculo automático de médias individuais
 * ✅ Determinação da situação: APROVADO ou REPROVADO conforme média mínima configurada
 * 📋 Tabela de alunos com rolagem vertical e horizontal
+* 🎨 Interface moderna com cards, ícones, paleta de cores e estado vazio orientativo
 * 📈 Dashboard com alunos cadastrados, média da turma, aprovados e reprovados
 * 📉 Análises da turma: maior/menor média, percentuais, capacidade e quantidade de avaliações
 * 🧮 Análise por avaliação: média da turma em cada avaliação

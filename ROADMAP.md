@@ -17,6 +17,7 @@ O roadmap reflete a evolução do projeto acadêmico.
 - [x] Funcionalidade de limpeza de dados (individual e total).
 - [x] Ajuste automático de notas ao alterar quantidade de avaliações.
 - [x] Feedback visual e mensagens de confirmação/erro amigáveis.
+- [x] Redesign visual com paleta moderna, hierarquia tipográfica, cards, ícones e estado vazio da tabela.
 
 ## Em desenvolvimento
 - Nenhuma funcionalidade está atualmente em desenvolvimento parcial.

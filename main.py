@@ -12,6 +12,66 @@ from tkinter import ttk
 from tkinter import messagebox
 
 # =====================================================================
+# PALETA DE CORES MODERNA
+# =====================================================================
+CORES = {
+    # Primária - azul vibrante para ações principais
+    "primaria": "#2563eb",
+    "primaria_hover": "#1d4ed8",
+    "primaria_pressed": "#1e40af",
+    "primaria_light": "#dbeafe",
+    
+    # Secundária - roxo/azul para elementos secundários
+    "secundaria": "#7c3aed",
+    "secundaria_hover": "#6d28d9",
+    "secundaria_light": "#ede9fe",
+    
+    # Destaque - ciano para informações importantes
+    "destaque": "#06b6d4",
+    "destaque_hover": "#0891b2",
+    "destaque_light": "#cffafe",
+    
+    # Sucesso - verde para aprovações
+    "sucesso": "#10b981",
+    "sucesso_hover": "#059669",
+    "sucesso_light": "#d1fae5",
+    
+    # Alerta - âmbar/laranja para atenção
+    "alerta": "#f59e0b",
+    "alerta_hover": "#d97706",
+    "alerta_light": "#fef3c7",
+    
+    # Erro - vermelho para erros/reprovações
+    "erro": "#ef4444",
+    "erro_hover": "#dc2626",
+    "erro_light": "#fee2e2",
+    
+    # Fundos
+    "fundo": "#f8fafc",
+    "fundo_secundario": "#f1f5f9",
+    "card": "#ffffff",
+    "card_hover": "#fafafa",
+    
+    # Textos
+    "texto_primario": "#0f172a",
+    "texto_secundario": "#475569",
+    "texto_terciario": "#94a3b8",
+    "texto_inverso": "#ffffff",
+    "texto_sucesso": "#065f46",
+    "texto_alerta": "#92400e",
+    "texto_erro": "#991b1b",
+    
+    # Bordas
+    "borda": "#e2e8f0",
+    "borda_foco": "#2563eb",
+    
+    # Estados
+    "hover": "#f1f5f9",
+    "selecionado": "#dbeafe",
+    "desabilitado": "#f1f5f9",
+}
+
+# =====================================================================
 # VARIAVEIS GLOBAIS E ESTRUTURAS DE DADOS
 # =====================================================================
 configuracao_turma = {
@@ -32,6 +92,7 @@ tree_alunos = None
 tree_avaliacoes = None
 tree_individual = None
 frame_campos_notas = None
+frame_tree_alunos = None
 entry_nome = None
 entry_busca = None
 label_status = None
@@ -42,7 +103,11 @@ label_detalhe_media = None
 label_detalhe_situacao = None
 label_detalhe_alerta = None
 label_config_atual = None
+label_estado_vazio = None
 notebook = None
+
+# Referências para botões (para estados hover)
+botoes_referencia = {}
 
 
 # =====================================================================
@@ -114,9 +179,28 @@ def coletar_dados_formulario():
     return nome, notas
 
 
-def definir_status(mensagem):
-    """Exibe feedback curto ao usuario."""
-    label_status.config(text=mensagem)
+def definir_status(mensagem, tipo="info"):
+    """Exibe feedback curto ao usuario com cor adequada ao contexto."""
+    cores_status = {
+        "info": CORES["texto_secundario"],
+        "sucesso": CORES["texto_sucesso"],
+        "alerta": CORES["texto_alerta"],
+        "erro": CORES["texto_erro"],
+    }
+    label_status.config(text=mensagem, foreground=cores_status.get(tipo, CORES["texto_secundario"]))
+
+
+def criar_botao(pai, texto, comando, estilo="Secondary.TButton", largura=None):
+    """Cria botão com estilo consistente e hover visual."""
+    botao = ttk.Button(pai, text=texto, command=comando, style=estilo, width=largura)
+    return botao
+
+
+def criar_separador_visual(pai, linha, coluna=0, columnspan=1, pady=12):
+    """Adiciona separador suave para criar respiro visual."""
+    separador = ttk.Separator(pai, orient=tk.HORIZONTAL)
+    separador.grid(row=linha, column=coluna, columnspan=columnspan, sticky="ew", pady=pady)
+    return separador
 
 
 # =====================================================================
@@ -208,6 +292,7 @@ def atualizar_colunas_tabela():
 def atualizar_tabela_alunos():
     """Atualiza a tabela com os dados reais e filtro de busca."""
     termo_busca = entry_busca.get().strip().lower()
+    total_exibido = 0
 
     for item in tree_alunos.get_children():
         tree_alunos.delete(item)
@@ -226,9 +311,23 @@ def atualizar_tabela_alunos():
         valores.append(formatar_numero(media))
         valores.append(situacao)
         tree_alunos.insert("", tk.END, iid=str(aluno["id"]), values=valores, tags=(situacao.lower(),))
+        total_exibido += 1
 
-    tree_alunos.tag_configure("aprovado", foreground="#0f6b3a")
-    tree_alunos.tag_configure("reprovado", foreground="#a12424")
+    tree_alunos.tag_configure("aprovado", foreground=CORES["texto_sucesso"], background="#f0fdf4")
+    tree_alunos.tag_configure("reprovado", foreground=CORES["texto_erro"], background="#fef2f2")
+
+    if label_estado_vazio is not None and frame_tree_alunos is not None:
+        if total_exibido == 0:
+            if termo_busca == "" and len(alunos) == 0:
+                mensagem = "👥\n\nNenhum aluno cadastrado\n\nAdicione um aluno para começar."
+            else:
+                mensagem = "🔎\n\nNenhum aluno encontrado\n\nAjuste a pesquisa para ver resultados."
+            label_estado_vazio.config(text=mensagem)
+            frame_tree_alunos.grid_remove()
+            label_estado_vazio.grid()
+        else:
+            label_estado_vazio.grid_remove()
+            frame_tree_alunos.grid()
 
 
 def atualizar_dashboard():
@@ -445,14 +544,18 @@ def reconstruir_campos_notas():
     for widget in frame_campos_notas.winfo_children():
         widget.destroy()
 
+    for coluna in range(2):
+        frame_campos_notas.columnconfigure(coluna, weight=1)
+
     for indice in range(configuracao_turma["quantidade_avaliacoes"]):
-        linha = indice // 4
-        coluna = indice % 4
+        linha = indice // 2
+        coluna = indice % 2
         frame_campo = ttk.Frame(frame_campos_notas)
         frame_campo.grid(row=linha, column=coluna, sticky="ew", padx=6, pady=5)
-        ttk.Label(frame_campo, text=f"Nota {indice + 1}").pack(anchor="w")
-        campo = ttk.Entry(frame_campo, width=12, justify="center")
-        campo.pack(fill=tk.X)
+        frame_campo.columnconfigure(0, weight=1)
+        ttk.Label(frame_campo, text=f"Nota {indice + 1}").grid(row=0, column=0, sticky="w")
+        campo = ttk.Entry(frame_campo, justify="center")
+        campo.grid(row=1, column=0, sticky="ew", pady=(2, 0))
         campos_notas.append(campo)
 
 
@@ -462,10 +565,12 @@ def abrir_configuracao_turma():
     janela.title("Configurar Turma")
     janela.transient(root)
     janela.grab_set()
-    janela.resizable(False, False)
+    janela.resizable(True, False)
+    janela.minsize(420, 300)
 
     frame = ttk.Frame(janela, padding=18)
     frame.pack(fill=tk.BOTH, expand=True)
+    frame.columnconfigure(1, weight=1)
 
     ttk.Label(frame, text="Configuracao da Turma", style="Subtitle.TLabel").grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 12))
 
@@ -536,62 +641,117 @@ def abrir_configuracao_turma():
 # =====================================================================
 # MONTAGEM DA INTERFACE GRAFICA
 # =====================================================================
-def criar_card(pai, titulo, chave, coluna):
-    """Cria card do dashboard."""
-    card = ttk.Frame(pai, style="Card.TFrame", padding=16)
-    card.grid(row=0, column=coluna, sticky="nsew", padx=6, pady=6)
+def criar_card(pai, titulo, chave, coluna, icone, cor):
+    """Cria card moderno do dashboard com icone, valor e cor de destaque."""
+    card = ttk.Frame(pai, style="Card.TFrame", padding=(12, 8))
+    card.grid(row=0, column=coluna, sticky="nsew", padx=5, pady=5)
     pai.columnconfigure(coluna, weight=1)
-    ttk.Label(card, text=titulo, style="CardTitle.TLabel").pack(anchor="w")
-    valor = ttk.Label(card, text="0", style="CardValue.TLabel")
-    valor.pack(anchor="w", pady=(8, 0))
+
+    topo = ttk.Frame(card, style="Card.TFrame")
+    topo.pack(fill=tk.X)
+    ttk.Label(topo, text=icone, style="CardIcon.TLabel", foreground=cor).pack(side=tk.LEFT)
+    ttk.Label(topo, text=titulo, style="CardTitle.TLabel").pack(side=tk.LEFT, padx=(6, 0))
+
+    valor = ttk.Label(card, text="0", style="CardValue.TLabel", foreground=cor)
+    valor.pack(anchor="w", pady=(6, 0))
     labels_dashboard[chave] = valor
 
 
 def criar_linha_analise(pai, texto, chave, linha):
-    """Cria uma linha de indicador analitico."""
-    ttk.Label(pai, text=texto).grid(row=linha, column=0, sticky="w", padx=8, pady=5)
-    valor = ttk.Label(pai, text="-", style="Value.TLabel")
-    valor.grid(row=linha, column=1, sticky="w", padx=8, pady=5)
+    """Cria uma linha de indicador analitico com hierarquia visual."""
+    ttk.Label(pai, text=texto, style="MetricName.TLabel").grid(row=linha, column=0, sticky="w", padx=12, pady=7)
+    valor = ttk.Label(pai, text="-", style="MetricValue.TLabel")
+    valor.grid(row=linha, column=1, sticky="e", padx=12, pady=7)
     labels_analise[chave] = valor
 
 
 def construir_interface():
     """Monta a janela principal e todos os paineis."""
-    global root, tree_alunos, tree_avaliacoes, tree_individual, frame_campos_notas
+    global root, tree_alunos, tree_avaliacoes, tree_individual, frame_campos_notas, frame_tree_alunos
     global entry_nome, entry_busca, label_status, label_detalhe_nome
     global label_detalhe_media, label_detalhe_situacao, label_detalhe_alerta
-    global label_config_atual, notebook
+    global label_config_atual, label_estado_vazio, notebook
 
     root = tk.Tk()
     root.title("Controle Academico de Notas")
-    root.geometry("1120x760")
-    root.minsize(940, 640)
+    root.geometry("1200x820")
+    root.minsize(980, 700)
 
     style = ttk.Style()
-    style.theme_use("vista" if "vista" in style.theme_names() else "clam")
-    style.configure("TFrame", background="#eef3f8")
-    style.configure("Card.TFrame", background="#ffffff", relief="flat")
-    style.configure("TLabel", background="#eef3f8", font=("Segoe UI", 10))
-    style.configure("CardTitle.TLabel", background="#ffffff", foreground="#596579", font=("Segoe UI", 10, "bold"))
-    style.configure("CardValue.TLabel", background="#ffffff", foreground="#19324d", font=("Segoe UI", 22, "bold"))
-    style.configure("Title.TLabel", background="#eef3f8", foreground="#17324d", font=("Segoe UI", 20, "bold"))
-    style.configure("Subtitle.TLabel", background="#eef3f8", foreground="#34495e", font=("Segoe UI", 12, "bold"))
-    style.configure("Value.TLabel", background="#eef3f8", foreground="#17324d", font=("Segoe UI", 10, "bold"))
-    style.configure("TButton", font=("Segoe UI", 10), padding=7)
-    style.configure("Accent.TButton", font=("Segoe UI", 10, "bold"), padding=7)
-    style.configure("Treeview", font=("Segoe UI", 9), rowheight=26)
-    style.configure("Treeview.Heading", font=("Segoe UI", 9, "bold"))
+    style.theme_use("clam")
+
+    # Cores base
+    bg = CORES["fundo"]
+    bg_card = CORES["card"]
+    txt_prim = CORES["texto_primario"]
+    txt_sec = CORES["texto_secundario"]
+    txt_ter = CORES["texto_terciario"]
+    prim = CORES["primaria"]
+    sec = CORES["secundaria"]
+    dest = CORES["destaque"]
+    suc = CORES["sucesso"]
+    alt = CORES["alerta"]
+    err = CORES["erro"]
+    borda = CORES["borda"]
+
+    style.configure("TFrame", background=bg)
+    style.configure("Card.TFrame", background=bg_card, relief="flat", borderwidth=1)
+    style.map("Card.TFrame", background=[("active", CORES["card_hover"])])
+
+    style.configure("TLabel", background=bg, foreground=txt_prim, font=("Segoe UI", 10))
+    style.configure("CardTitle.TLabel", background=bg_card, foreground=txt_sec, font=("Segoe UI", 10, "bold"))
+    style.configure("CardIcon.TLabel", background=bg_card, font=("Segoe UI", 14))
+    style.configure("CardValue.TLabel", background=bg_card, foreground=txt_prim, font=("Segoe UI", 18, "bold"))
+    style.configure("CardHint.TLabel", background=bg_card, foreground=txt_ter, font=("Segoe UI", 8))
+    style.configure("Title.TLabel", background=bg, foreground=txt_prim, font=("Segoe UI", 18, "bold"))
+    style.configure("Subtitle.TLabel", background=bg, foreground=txt_sec, font=("Segoe UI", 12, "bold"))
+    style.configure("MetricName.TLabel", background=bg, foreground=txt_sec, font=("Segoe UI", 10))
+    style.configure("MetricValue.TLabel", background=bg, foreground=txt_prim, font=("Segoe UI", 10, "bold"))
+
+    style.configure("TButton", font=("Segoe UI", 9), padding=(8, 5))
+    style.configure("Primary.TButton", font=("Segoe UI", 9, "bold"), padding=(8, 5), foreground=CORES["texto_inverso"])
+    style.map("Primary.TButton",
+        background=[("active", CORES["primaria_hover"]), ("pressed", CORES["primaria_pressed"]), ("!disabled", prim)],
+        foreground=[("disabled", txt_ter)])
+    style.configure("Secondary.TButton", font=("Segoe UI", 10), padding=(12, 8))
+    style.map("Secondary.TButton",
+        background=[("active", CORES["hover"]), ("pressed", CORES["fundo_secundario"]), ("!disabled", bg_card)],
+        foreground=[("disabled", txt_ter)])
+    style.configure("Danger.TButton", font=("Segoe UI", 10), padding=(12, 8), foreground=err)
+    style.map("Danger.TButton",
+        background=[("active", CORES["erro_light"]), ("pressed", CORES["erro_light"]), ("!disabled", bg_card)])
+
+    style.configure("Treeview", font=("Segoe UI", 9), rowheight=28, background=bg_card, fieldbackground=bg_card, borderwidth=0)
+    style.configure("Treeview.Heading", font=("Segoe UI", 9, "bold"), background=bg, foreground=txt_prim, borderwidth=1, relief="flat")
+    style.map("Treeview.Heading", background=[("active", CORES["hover"])])
+    style.map("Treeview",
+        background=[("selected", CORES["selecionado"])],
+        foreground=[("selected", txt_prim)])
+
+    style.configure("TLabelframe", background=bg, borderwidth=1, relief="solid", bordercolor=borda)
+    style.configure("TLabelframe.Label", background=bg, foreground=txt_prim, font=("Segoe UI", 10, "bold"))
+    style.configure("TNotebook", background=bg, borderwidth=0)
+    style.configure("TNotebook.Tab", font=("Segoe UI", 10), padding=(16, 8), background=bg, foreground=txt_sec)
+    style.map("TNotebook.Tab",
+        background=[("selected", bg_card), ("active", CORES["hover"])],
+        foreground=[("selected", prim), ("active", txt_prim)])
+
+    style.configure("TEntry", fieldbackground=bg_card, borderwidth=1, relief="solid")
+    style.map("TEntry", bordercolor=[("focus", CORES["borda_foco"]), ("!focus", borda)])
+
+    style.configure("TSeparator", background=borda)
 
     root.columnconfigure(0, weight=1)
     root.rowconfigure(1, weight=1)
 
-    cabecalho = ttk.Frame(root, padding=(18, 14, 18, 8))
+    cabecalho = ttk.Frame(root, padding=(24, 16, 24, 12))
     cabecalho.grid(row=0, column=0, sticky="ew")
     cabecalho.columnconfigure(0, weight=1)
-    ttk.Label(cabecalho, text="Controle Academico de Notas", style="Title.TLabel").grid(row=0, column=0, sticky="w")
-    label_config_atual = ttk.Label(cabecalho, text="", foreground="#596579")
-    label_config_atual.grid(row=1, column=0, sticky="w", pady=(4, 0))
-    ttk.Button(cabecalho, text="Configurar Turma", command=abrir_configuracao_turma, style="Accent.TButton").grid(row=0, column=1, rowspan=2, sticky="e")
+    ttk.Label(cabecalho, text="📚  Controle Acadêmico de Notas", style="Title.TLabel").grid(row=0, column=0, sticky="w")
+    ttk.Label(cabecalho, text="Gestão completa de turma, notas e desempenho", style="Subtitle.TLabel").grid(row=1, column=0, sticky="w", pady=(4, 0))
+    label_config_atual = ttk.Label(cabecalho, text="", foreground=CORES["texto_terciario"], font=("Segoe UI", 9))
+    label_config_atual.grid(row=2, column=0, sticky="w", pady=(2, 0))
+    ttk.Button(cabecalho, text="⚙️  Configurar Turma", command=abrir_configuracao_turma, style="Primary.TButton").grid(row=0, column=1, rowspan=3, sticky="e", padx=(16, 0))
 
     notebook = ttk.Notebook(root)
     notebook.grid(row=1, column=0, sticky="nsew", padx=14, pady=8)
@@ -607,55 +767,78 @@ def construir_interface():
     aba_principal.rowconfigure(2, weight=1)
 
     dashboard = ttk.Frame(aba_principal)
-    dashboard.grid(row=0, column=0, sticky="ew")
-    criar_card(dashboard, "Alunos", "alunos", 0)
-    criar_card(dashboard, "Media da turma", "media", 1)
-    criar_card(dashboard, "Aprovados", "aprovados", 2)
-    criar_card(dashboard, "Reprovados", "reprovados", 3)
+    dashboard.grid(row=0, column=0, sticky="ew", pady=(0, 8))
+    dashboard.rowconfigure(0, weight=1)
+    criar_card(dashboard, "Alunos", "alunos", 0, "👥", CORES["primaria"])
+    criar_card(dashboard, "Média da turma", "media", 1, "📊", CORES["secundaria"])
+    criar_card(dashboard, "Aprovados", "aprovados", 2, "✅", CORES["sucesso"])
+    criar_card(dashboard, "Reprovados", "reprovados", 3, "⚠️", CORES["alerta"])
 
-    labels_dashboard["ocupacao"] = ttk.Label(aba_principal, text="", foreground="#596579")
-    labels_dashboard["ocupacao"].grid(row=1, column=0, sticky="w", padx=6, pady=(0, 8))
+    labels_dashboard["ocupacao"] = ttk.Label(aba_principal, text="", style="CardHint.TLabel")
+    labels_dashboard["ocupacao"].grid(row=1, column=0, sticky="w", padx=8, pady=(0, 12))
 
     corpo = ttk.PanedWindow(aba_principal, orient=tk.HORIZONTAL)
     corpo.grid(row=2, column=0, sticky="nsew")
 
-    painel_form = ttk.LabelFrame(corpo, text="Cadastro e Edicao", padding=12)
-    painel_tabela = ttk.LabelFrame(corpo, text="Tabela de Alunos", padding=12)
+    painel_form = ttk.LabelFrame(corpo, text="📝  Cadastro e Edição", padding=16)
+    painel_tabela = ttk.LabelFrame(corpo, text="📋  Tabela de Alunos", padding=16)
     corpo.add(painel_form, weight=1)
     corpo.add(painel_tabela, weight=3)
 
     painel_form.columnconfigure(0, weight=1)
-    ttk.Label(painel_form, text="Nome do aluno").grid(row=0, column=0, sticky="w")
-    entry_nome = ttk.Entry(painel_form)
-    entry_nome.grid(row=1, column=0, sticky="ew", pady=(2, 10))
 
-    frame_campos_notas = ttk.Frame(painel_form)
-    frame_campos_notas.grid(row=2, column=0, sticky="ew")
+    # Grupo: Identificação
+    grupo_id = ttk.LabelFrame(painel_form, text="Identificação", padding=12)
+    grupo_id.grid(row=0, column=0, sticky="ew", pady=(0, 12))
+    grupo_id.columnconfigure(0, weight=1)
+    ttk.Label(grupo_id, text="Nome completo do aluno").grid(row=0, column=0, sticky="w", pady=(0, 4))
+    entry_nome = ttk.Entry(grupo_id, font=("Segoe UI", 10))
+    entry_nome.grid(row=1, column=0, sticky="ew")
 
-    botoes_form = ttk.Frame(painel_form)
-    botoes_form.grid(row=3, column=0, sticky="ew", pady=(14, 0))
-    for coluna in range(2):
-        botoes_form.columnconfigure(coluna, weight=1)
-    ttk.Button(botoes_form, text="Adicionar", command=adicionar_aluno, style="Accent.TButton").grid(row=0, column=0, sticky="ew", padx=3, pady=3)
-    ttk.Button(botoes_form, text="Salvar Edicao", command=editar_aluno).grid(row=0, column=1, sticky="ew", padx=3, pady=3)
-    ttk.Button(botoes_form, text="Remover", command=remover_aluno).grid(row=1, column=0, sticky="ew", padx=3, pady=3)
-    ttk.Button(botoes_form, text="Novo/Limpar", command=limpar_formulario).grid(row=1, column=1, sticky="ew", padx=3, pady=3)
-    ttk.Button(painel_form, text="Limpar todos os dados", command=limpar_todos_os_dados).grid(row=4, column=0, sticky="ew", pady=(10, 0))
+    # Grupo: Notas recebe maior espaço vertical para manter entradas acessíveis.
+    grupo_notas = ttk.LabelFrame(painel_form, text="Notas das Avaliações", padding=12)
+    grupo_notas.grid(row=1, column=0, sticky="nsew", pady=(0, 10))
+    grupo_notas.columnconfigure(0, weight=1)
+    grupo_notas.rowconfigure(0, weight=1)
+    painel_form.rowconfigure(1, weight=1)
+    frame_campos_notas = ttk.Frame(grupo_notas)
+    frame_campos_notas.grid(row=0, column=0, sticky="new")
+
+    # Grupo: Ações compacto, abaixo das notas.
+    grupo_acoes = ttk.LabelFrame(painel_form, text="Ações rápidas", padding=8)
+    grupo_acoes.grid(row=2, column=0, sticky="ew")
+    for coluna in range(5):
+        grupo_acoes.columnconfigure(coluna, weight=1)
+    ttk.Button(grupo_acoes, text="Adicionar", command=adicionar_aluno, style="Primary.TButton").grid(row=0, column=0, sticky="ew", padx=2)
+    ttk.Button(grupo_acoes, text="Salvar", command=editar_aluno, style="Secondary.TButton").grid(row=0, column=1, sticky="ew", padx=2)
+    ttk.Button(grupo_acoes, text="Remover", command=remover_aluno, style="Danger.TButton").grid(row=0, column=2, sticky="ew", padx=2)
+    ttk.Button(grupo_acoes, text="Limpar", command=limpar_formulario, style="Secondary.TButton").grid(row=0, column=3, sticky="ew", padx=2)
+    ttk.Button(grupo_acoes, text="Limpar dados", command=limpar_todos_os_dados, style="Danger.TButton").grid(row=0, column=4, sticky="ew", padx=2)
 
     painel_tabela.columnconfigure(0, weight=1)
     painel_tabela.rowconfigure(2, weight=1)
-    ttk.Label(painel_tabela, text="Pesquisar aluno").grid(row=0, column=0, sticky="w")
-    entry_busca = ttk.Entry(painel_tabela)
-    entry_busca.grid(row=1, column=0, sticky="ew", pady=(2, 8))
+
+    # Barra de busca com ícone
+    frame_busca = ttk.Frame(painel_tabela)
+    frame_busca.grid(row=0, column=0, sticky="ew", pady=(0, 8))
+    frame_busca.columnconfigure(0, weight=1)
+    ttk.Label(frame_busca, text="🔎  Pesquisar aluno").grid(row=0, column=0, sticky="w")
+    entry_busca = ttk.Entry(frame_busca, font=("Segoe UI", 10))
+    entry_busca.grid(row=1, column=0, sticky="ew", pady=(4, 0))
     entry_busca.bind("<KeyRelease>", filtrar_alunos)
 
-    frame_tree = ttk.Frame(painel_tabela)
-    frame_tree.grid(row=2, column=0, sticky="nsew")
-    frame_tree.columnconfigure(0, weight=1)
-    frame_tree.rowconfigure(0, weight=1)
-    tree_alunos = ttk.Treeview(frame_tree, show="headings", selectmode="browse")
-    scroll_y = ttk.Scrollbar(frame_tree, orient=tk.VERTICAL, command=tree_alunos.yview)
-    scroll_x = ttk.Scrollbar(frame_tree, orient=tk.HORIZONTAL, command=tree_alunos.xview)
+    # Label de estado vazio
+    label_estado_vazio = ttk.Label(painel_tabela, text="👥\n\nNenhum aluno cadastrado\n\nAdicione um aluno para começar.",
+                                    justify=tk.CENTER, foreground=CORES["texto_terciario"], font=("Segoe UI", 11))
+    label_estado_vazio.grid(row=2, column=0, sticky="nsew", pady=40)
+
+    frame_tree_alunos = ttk.Frame(painel_tabela)
+    frame_tree_alunos.grid(row=2, column=0, sticky="nsew")
+    frame_tree_alunos.columnconfigure(0, weight=1)
+    frame_tree_alunos.rowconfigure(0, weight=1)
+    tree_alunos = ttk.Treeview(frame_tree_alunos, show="headings", selectmode="browse")
+    scroll_y = ttk.Scrollbar(frame_tree_alunos, orient=tk.VERTICAL, command=tree_alunos.yview)
+    scroll_x = ttk.Scrollbar(frame_tree_alunos, orient=tk.HORIZONTAL, command=tree_alunos.xview)
     tree_alunos.configure(yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set)
     tree_alunos.grid(row=0, column=0, sticky="nsew")
     scroll_y.grid(row=0, column=1, sticky="ns")
@@ -667,6 +850,7 @@ def construir_interface():
     aba_analises.rowconfigure(1, weight=1)
     painel_indicadores = ttk.LabelFrame(aba_analises, text="Indicadores gerais", padding=12)
     painel_indicadores.grid(row=0, column=0, sticky="nsew", padx=(0, 8), pady=(0, 8))
+    painel_indicadores.columnconfigure(0, weight=1)
     criar_linha_analise(painel_indicadores, "Media geral:", "media_geral", 0)
     criar_linha_analise(painel_indicadores, "Maior media:", "maior_media", 1)
     criar_linha_analise(painel_indicadores, "Menor media:", "menor_media", 2)
@@ -681,11 +865,14 @@ def construir_interface():
     painel_avaliacoes.columnconfigure(0, weight=1)
     painel_avaliacoes.rowconfigure(0, weight=1)
     tree_avaliacoes = ttk.Treeview(painel_avaliacoes, columns=("avaliacao", "media"), show="headings")
+    scroll_avaliacoes = ttk.Scrollbar(painel_avaliacoes, orient=tk.VERTICAL, command=tree_avaliacoes.yview)
+    tree_avaliacoes.configure(yscrollcommand=scroll_avaliacoes.set)
     tree_avaliacoes.heading("avaliacao", text="Avaliacao")
     tree_avaliacoes.heading("media", text="Media")
-    tree_avaliacoes.column("avaliacao", width=180, anchor="w")
-    tree_avaliacoes.column("media", width=100, anchor="center")
+    tree_avaliacoes.column("avaliacao", width=180, minwidth=120, anchor="w", stretch=True)
+    tree_avaliacoes.column("media", width=100, minwidth=80, anchor="center", stretch=False)
     tree_avaliacoes.grid(row=0, column=0, sticky="nsew")
+    scroll_avaliacoes.grid(row=0, column=1, sticky="ns")
 
     painel_orientacao = ttk.LabelFrame(aba_analises, text="Leitura dos dados", padding=12)
     painel_orientacao.grid(row=1, column=0, sticky="nsew", padx=(0, 8))
@@ -713,13 +900,16 @@ def construir_interface():
     frame_individual.columnconfigure(0, weight=1)
     frame_individual.rowconfigure(0, weight=1)
     tree_individual = ttk.Treeview(frame_individual, columns=("avaliacao", "nota"), show="headings")
+    scroll_individual = ttk.Scrollbar(frame_individual, orient=tk.VERTICAL, command=tree_individual.yview)
+    tree_individual.configure(yscrollcommand=scroll_individual.set)
     tree_individual.heading("avaliacao", text="Avaliacao")
     tree_individual.heading("nota", text="Nota")
-    tree_individual.column("avaliacao", width=220, anchor="w")
-    tree_individual.column("nota", width=120, anchor="center")
+    tree_individual.column("avaliacao", width=220, minwidth=140, anchor="w", stretch=True)
+    tree_individual.column("nota", width=120, minwidth=80, anchor="center", stretch=False)
     tree_individual.grid(row=0, column=0, sticky="nsew")
+    scroll_individual.grid(row=0, column=1, sticky="ns")
 
-    label_status = ttk.Label(root, text="Sistema pronto.", padding=(18, 8), foreground="#34495e")
+    label_status = ttk.Label(root, text="Sistema pronto.", padding=(14, 5), foreground="#34495e", font=("Segoe UI", 9))
     label_status.grid(row=2, column=0, sticky="ew")
 
     reconstruir_campos_notas()

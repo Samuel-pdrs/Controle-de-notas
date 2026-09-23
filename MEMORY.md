@@ -13,7 +13,7 @@ O objetivo do sistema é facilitar o controle de notas de alunos com configuraç
 ```
 Controle-de-notas/
 ├── main.py                # Código principal
-├── py.md                  # Documentação extra de referência (não identificado)
+├── Phyton.md              # Documentação extra de referência
 ├── MEMORY.md              # Este arquivo
 ├── ROADMAP.md             # Planejamento
 ├── README.md              # Introdução
